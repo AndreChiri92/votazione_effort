@@ -358,14 +358,13 @@
 
         // Inizia una nuova sessione
         window.startNewSession = function() {
-            serverData.users = [];
             serverData.votes = {};
             serverData.revealed = false;
             saveSessionData();
             
             document.getElementById('resultsArea').style.display = 'none';
-            document.getElementById('loginArea').style.display = 'block';
-            document.getElementById('votingArea').style.display = 'none';
+            document.getElementById('votingArea').style.display = 'block';
+            updateStatusPanel();
         }
 
         init();
