@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App di Votazione Team</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .login-area {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .voting-area {
+            display: none;
+            margin-top: 20px;
+        }
+        .vote-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .vote-btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #e0e0e0;
+            transition: background-color 0.3s;
+        }
+        .vote-btn:hover {
+            background-color: #d0d0d0;
+        }
+        .vote-btn.selected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .special-vote-btn {
+            background-color: #f0f0f0;
+            border: 1px dashed #aaa;
+        }
+        .reveal-area {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .reveal-btn {
+            padding: 12px 25px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .reveal-btn:hover {
+            background-color: #0b7dda;
+        }
+        .reveal-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .results-area {
+            display: none;
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .results-table th, .results-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .results-table th {
+            background-color: #f2f2f2;
+        }
+        .status-panel {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 5px;
+        }
+        .new-session-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #673AB7;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .user-status {
+            margin-top: 15px;
+        }
+        .user-status span {
+            display: inline-block;
+            margin-right: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            background-color: #f0f0f0;
+        }
+        .user-status .voted {
+            background-color: #c8e6c9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>App di Votazione Team</h1>
+        
+        <div class="login-area" id="loginArea">
+            <h2>Accedi</h2>
+            <input type="text" id="usernameInput" placeholder="Il tuo nome" style="padding: 8px; width: 200px;">
+            <button onclick="login()" style="padding: 8px 15px; margin-left: 10px;">Accedi</button>
+        </div>
+        
+        <div class="voting-area" id="votingArea">
+            <h2>Seleziona il tuo voto</h2>
+            <p>Voto attuale: <span id="currentVote">Nessun voto</span></p>
+            
+            <div class="vote-buttons" id="normalVotes">
+                <h3>Voti Standard</h3>
+                <div id="standardVotes"></div>
+            </div>
+            
+            <div class="vote-buttons" id="specialVotes">
+                <h3>Voti Speciali (casi eccezionali)</h3>
+                <div id="exceptionalVotes"></div>
+            </div>
+            
+            <div class="status-panel">
+                <h3>Status Votazione</h3>
+                <p>Partecipanti che hanno votato: <span id="votedCount">0</span>/<span id="totalCount">0</span></p>
+                <div class="user-status" id="userStatus"></div>
+            </div>
+            
+            <div class="reveal-area">
+                <button id="revealBtn" class="reveal-btn" disabled>Rivela i Risultati</button>
+            </div>
+        </div>
+        
+        <div class="results-area" id="resultsArea">
+            <h2>Risultati della Votazione</h2>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Partecipante</th>
+                        <th>Voto</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="new-session-btn" onclick="startNewSession()">Inizia Nuova Sessione</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulazione di uno storage di dati server-side
+        const serverData = {
+            users: [],
+            votes: {},
+            revealed: false
+        };
+        
+        let currentUser = null;
+        
+        // Valori di voto possibili
+        const standardVotes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+        const exceptionalVotes = [20, 30, 40, 50, 60, 70, 80, 90, 100];
+        
+        // Inizializzazione
+        function init() {
+            createVoteButtons();
+        }
+        
+        // Crea i pulsanti di voto
+        function createVoteButtons() {
+            const standardContainer = document.getElementById('standardVotes');
+            const exceptionalContainer = document.getElementById('exceptionalVotes');
+            
+            standardContainer.innerHTML = '';
+            exceptionalContainer.innerHTML = '';
+            
+            standardVotes.forEach(vote => {
+                const button = document.createElement('button');
+                button.classList.add('vote-btn');
+                button.textContent = vote;
+                button.onclick = () => selectVote(vote);
+                standardContainer.appendChild(button);
+            });
+            
+            exceptionalVotes.forEach(vote => {
+                const button = document.createElement('button');
+                button.classList.add('vote-btn', 'special-vote-btn');
+                button.textContent = vote;
+                button.onclick = () => selectVote(vote);
+                exceptionalContainer.appendChild(button);
+            });
+        }
+        
+        // Login
+        function login() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                alert('Inserisci un nome utente valido');
+                return;
+            }
+            
+            if (serverData.users.includes(username)) {
+                alert('Questo nome utente è già in uso');
+                return;
+            }
+            
+            currentUser = username;
+            serverData.users.push(username);
+            
+            document.getElementById('loginArea').style.display = 'none';
+            document.getElementById('votingArea').style.display = 'block';
+            
+            updateStatusPanel();
+        }
+        
+        // Seleziona un voto
+        function selectVote(vote) {
+            if (!currentUser) return;
+            
+            serverData.votes[currentUser] = vote;
+            document.getElementById('currentVote').textContent = vote;
+            
+            // Resetta tutti i pulsanti
+            document.querySelectorAll('.vote-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Seleziona il pulsante del voto attuale
+            document.querySelectorAll('.vote-btn').forEach(btn => {
+                if (parseInt(btn.textContent) === vote) {
+                    btn.classList.add('selected');
+                }
+            });
+            
+            updateStatusPanel();
+        }
+        
+        // Aggiorna il pannello di stato
+        function updateStatusPanel() {
+            const totalUsers = serverData.users.length;
+            const votedUsers = Object.keys(serverData.votes).length;
+            
+            document.getElementById('totalCount').textContent = totalUsers;
+            document.getElementById('votedCount').textContent = votedUsers;
+            
+            // Aggiorna lo stato degli utenti
+            const userStatusElement = document.getElementById('userStatus');
+            userStatusElement.innerHTML = '';
+            
+            serverData.users.forEach(user => {
+                const userSpan = document.createElement('span');
+                userSpan.textContent = user;
+                if (serverData.votes[user] !== undefined) {
+                    userSpan.classList.add('voted');
+                }
+                userStatusElement.appendChild(userSpan);
+            });
+            
+            // Abilita il pulsante Rivela se tutti hanno votato
+            const revealBtn = document.getElementById('revealBtn');
+            if (votedUsers === totalUsers && totalUsers > 0) {
+                revealBtn.disabled = false;
+                revealBtn.onclick = revealResults;
+            } else {
+                revealBtn.disabled = true;
+            }
+        }
+        
+        // Rivela i risultati
+        function revealResults() {
+            serverData.revealed = true;
+            
+            const resultsTable = document.getElementById('resultsBody');
+            resultsTable.innerHTML = '';
+            
+            for (const user in serverData.votes) {
+                const row = document.createElement('tr');
+                const nameCell = document.createElement('td');
+                const voteCell = document.createElement('td');
+                
+                nameCell.textContent = user;
+                voteCell.textContent = serverData.votes[user];
+                
+                row.appendChild(nameCell);
+                row.appendChild(voteCell);
+                resultsTable.appendChild(row);
+            }
+            
+            document.getElementById('votingArea').style.display = 'none';
+            document.getElementById('resultsArea').style.display = 'block';
+        }
+        
+        // Inizia una nuova sessione
+        function startNewSession() {
+            serverData.votes = {};
+            serverData.revealed = false;
+            
+            document.getElementById('currentVote').textContent = 'Nessun voto';
+            document.querySelectorAll('.vote-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            document.getElementById('resultsArea').style.display = 'none';
+            document.getElementById('votingArea').style.display = 'block';
+            
+            updateStatusPanel();
+        }
+        
+        // Inizializza l'app
+        init();
+    </script>
+</body>
+</html>
