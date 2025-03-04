@@ -125,12 +125,28 @@
         .user-status .voted {
             background-color: #c8e6c9;
         }
+        .reset-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        .reset-btn:hover {
+            background-color: #ff1a1a;
+        }
     </style>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
 </head>
 <body>
+    <button id="resetBtn" class="reset-btn" onclick="resetData()">Reset Dati</button>
     <div class="container">
         <h1>App di Votazione Team</h1>
         
@@ -374,9 +390,16 @@
             });
             
             const averageVote = voteCount > 0 ? (totalVotes / voteCount).toFixed(2) : 0;
-            document.getElementById('averageVote').textContent = averageVote;
+            const roundedAverageVote = roundToNearestVote(averageVote);
+            document.getElementById('averageVote').textContent = roundedAverageVote;
             
             document.getElementById('resultsArea').style.display = 'block';
+        }
+
+        // Arrotonda la media al voto possibile più vicino
+        function roundToNearestVote(averageVote) {
+            const allVotes = standardVotes.concat(exceptionalVotes);
+            return allVotes.reduce((prev, curr) => Math.abs(curr - averageVote) < Math.abs(prev - averageVote) ? curr : prev);
         }
 
         // Inizia una nuova sessione
@@ -388,6 +411,17 @@
             document.getElementById('resultsArea').style.display = 'none';
             document.getElementById('votingArea').style.display = 'block';
             updateStatusPanel();
+        }
+
+        // Reset dei dati
+        window.resetData = function() {
+            if (confirm("Sei sicuro di voler cancellare tutti i dati?")) {
+                serverData.users = [];
+                serverData.votes = {};
+                serverData.revealed = false;
+                saveSessionData();
+                location.reload(); // Ricarica la pagina per applicare le modifiche
+            }
         }
 
         init();
