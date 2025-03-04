@@ -177,6 +177,7 @@
                 <tbody id="resultsBody">
                 </tbody>
             </table>
+            <p>Media dei voti: <span id="averageVote">0</span></p>
             
             <div style="margin-top: 20px; text-align: center;">
                 <button class="new-session-btn" onclick="startNewSession()">Inizia Nuova Sessione</button>
@@ -260,6 +261,9 @@
                     serverData.votes = data.votes || {};
                     serverData.revealed = data.revealed || false;
                     updateStatusPanel();
+                    if (serverData.revealed) {
+                        showResults();
+                    }
                 }
             });
         }
@@ -344,28 +348,46 @@
 
         // Mostra i risultati
         window.revealResults = function() {
+            serverData.revealed = true;
+            saveSessionData();
+            showResults();
+        }
+
+        // Mostra i risultati
+        function showResults() {
             const resultsBody = document.getElementById('resultsBody');
             resultsBody.innerHTML = '';
             
+            let totalVotes = 0;
+            let voteCount = 0;
+            
             serverData.users.forEach(user => {
+                const vote = serverData.votes[user] || 'Nessun voto';
                 const row = document.createElement('tr');
-                row.innerHTML = `<td>${user}</td><td>${serverData.votes[user] || 'Nessun voto'}</td>`;
+                row.innerHTML = `<td>${user}</td><td>${vote}</td>`;
                 resultsBody.appendChild(row);
+                
+                if (vote !== 'Nessun voto') {
+                    totalVotes += vote;
+                    voteCount++;
+                }
             });
+            
+            const averageVote = voteCount > 0 ? (totalVotes / voteCount).toFixed(2) : 0;
+            document.getElementById('averageVote').textContent = averageVote;
             
             document.getElementById('resultsArea').style.display = 'block';
         }
 
         // Inizia una nuova sessione
         window.startNewSession = function() {
-            serverData.users = [];
             serverData.votes = {};
             serverData.revealed = false;
             saveSessionData();
             
             document.getElementById('resultsArea').style.display = 'none';
-            document.getElementById('loginArea').style.display = 'block';
-            document.getElementById('votingArea').style.display = 'none';
+            document.getElementById('votingArea').style.display = 'block';
+            updateStatusPanel();
         }
 
         init();
