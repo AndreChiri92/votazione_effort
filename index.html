@@ -125,37 +125,22 @@
         .user-status .voted {
             background-color: #c8e6c9;
         }
-        .session-id {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e3f2fd;
-            border-radius: 5px;
-            text-align: center;
-        }
-        .session-input {
-            margin-top: 10px;
-            margin-bottom: 10px;
-        }
     </style>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>App di Votazione Team</h1>
         
         <div class="login-area" id="loginArea">
-            <h2>Accedi a una sessione</h2>
-            <div class="session-input">
-                <input type="text" id="sessionInput" placeholder="ID Sessione (opzionale)" style="padding: 8px; width: 200px;">
-                <button onclick="createOrJoinSession()" style="padding: 8px 15px; margin-left: 10px;">Entra</button>
-            </div>
-            <div id="loginForm" style="display: none;">
-                <input type="text" id="usernameInput" placeholder="Il tuo nome" style="padding: 8px; width: 200px;">
-                <button onclick="login()" style="padding: 8px 15px; margin-left: 10px;">Accedi</button>
-            </div>
+            <h2>Accedi</h2>
+            <input type="text" id="usernameInput" placeholder="Il tuo nome" style="padding: 8px; width: 200px;">
+            <button onclick="login()" style="padding: 8px 15px; margin-left: 10px;">Accedi</button>
         </div>
         
         <div class="voting-area" id="votingArea">
-            <div class="session-id" id="sessionDisplay"></div>
             <h2>Seleziona il tuo voto</h2>
             <p>Voto attuale: <span id="currentVote">Nessun voto</span></p>
             
@@ -181,7 +166,6 @@
         </div>
         
         <div class="results-area" id="resultsArea">
-            <div class="session-id" id="resultsSessionDisplay"></div>
             <h2>Risultati della Votazione</h2>
             <table class="results-table">
                 <thead>
@@ -200,152 +184,47 @@
         </div>
     </div>
 
-    <!-- Firebase App (the core Firebase SDK) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <!-- Firebase Database -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script type="module">
+	import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
+  
+        // Firebase config
+		const firebaseConfig = {
+			apiKey: "AIzaSyAzn8QpAQomb63y4iDxz8SYIs-Sce2wUk4",
+			authDomain: "votazioneeffort.firebaseapp.com",
+			databaseURL: "https://votazioneeffort-default-rtdb.europe-west1.firebasedatabase.app",
+			projectId: "votazioneeffort",
+			storageBucket: "votazioneeffort.firebasestorage.app",
+			messagingSenderId: "263753067760",
+			appId: "1:263753067760:web:67e58acfa9139f4df76635",
+			measurementId: "G-E75RWK576Q"
+		  };
 
-    <script>
-        // Configurazione Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyDrJOQHOXMGO1GwEFZhqnWxLvOqk4nMGI8",
-            authDomain: "votazioneeffort.firebaseapp.com",
-            projectId: "votazioneeffort",
-            storageBucket: "votazioneeffort.appspot.com",
-            messagingSenderId: "953471264313",
-            appId: "1:953471264313:web:f9db39c8b2be9fc4b41fd7",
-            databaseURL: "https://votazioneeffort-default-rtdb.europe-west1.firebasedatabase.app"
-        };
-        
-        // Inizializza Firebase
-        firebase.initializeApp(firebaseConfig);
-        
-        // Riferimento al database
+        // Inizializzazione Firebase
+		//const app = initializeApp(firebaseConfig);
+		const analytics = getAnalytics(app);
+        const app = firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        
+
+        // Simulazione di uno storage di dati server-side
+        const serverData = {
+            users: [],
+            votes: {},
+            revealed: false
+        };
+
         let currentUser = null;
-        let currentSession = null;
-        let sessionRef = null;
-        
+
         // Valori di voto possibili
-        const standardVotes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+        const standardVotes = [0, 1, 2, 3, 5, 8, 13];
         const exceptionalVotes = [20, 30, 40, 50, 60, 70, 80, 90, 100];
-        
-        // Funzione per generare un ID sessione casuale
-        function generateSessionId() {
-            return Math.random().toString(36).substring(2, 8);
-        }
-        
-        // Crea o accedi a una sessione esistente
-        function createOrJoinSession() {
-            let sessionId = document.getElementById('sessionInput').value.trim();
-            
-            if (!sessionId) {
-                // Crea una nuova sessione con ID casuale
-                sessionId = generateSessionId();
-            }
-            
-            currentSession = sessionId;
-            sessionRef = database.ref('sessions/' + sessionId);
-            
-            // Verifica se la sessione esiste già
-            sessionRef.once('value', (snapshot) => {
-                if (!snapshot.exists()) {
-                    // Crea una nuova sessione
-                    sessionRef.set({
-                        created: firebase.database.ServerValue.TIMESTAMP,
-                        users: {},
-                        votes: {},
-                        revealed: false
-                    });
-                }
-                
-                // Mostra il form di login
-                document.getElementById('loginForm').style.display = 'block';
-                document.getElementById('sessionInput').disabled = true;
-                
-                // Aggiorna il display della sessione
-                document.getElementById('sessionDisplay').textContent = "Sessione: " + sessionId;
-                document.getElementById('resultsSessionDisplay').textContent = "Sessione: " + sessionId;
-                
-                // Ascolta gli aggiornamenti della sessione
-                listenToSessionUpdates();
-            });
-        }
-        
-        // Ascolta gli aggiornamenti della sessione
-        function listenToSessionUpdates() {
-            sessionRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
-                
-                // Aggiorna lo stato della UI in base ai dati
-                updateUIFromSessionData(data);
-            });
-        }
-        
-        // Aggiorna l'interfaccia utente in base ai dati della sessione
-        function updateUIFromSessionData(data) {
-            const usersData = data.users || {};
-            const votesData = data.votes || {};
-            const revealed = data.revealed || false;
-            
-            const users = Object.keys(usersData);
-            const votedUsers = Object.keys(votesData);
-            
-            // Aggiorna contatori
-            document.getElementById('totalCount').textContent = users.length;
-            document.getElementById('votedCount').textContent = votedUsers.length;
-            
-            // Aggiorna lo stato degli utenti
-            const userStatusElement = document.getElementById('userStatus');
-            userStatusElement.innerHTML = '';
-            
-            users.forEach(user => {
-                const userSpan = document.createElement('span');
-                userSpan.textContent = user;
-                if (votesData[user] !== undefined) {
-                    userSpan.classList.add('voted');
-                }
-                userStatusElement.appendChild(userSpan);
-            });
-            
-            // Aggiorna il voto attuale dell'utente
-            if (currentUser && votesData[currentUser] !== undefined) {
-                document.getElementById('currentVote').textContent = votesData[currentUser];
-                
-                // Resetta tutti i pulsanti
-                document.querySelectorAll('.vote-btn').forEach(btn => {
-                    btn.classList.remove('selected');
-                });
-                
-                // Seleziona il pulsante del voto attuale
-                document.querySelectorAll('.vote-btn').forEach(btn => {
-                    if (parseInt(btn.textContent) === votesData[currentUser]) {
-                        btn.classList.add('selected');
-                    }
-                });
-            }
-            
-            // Abilita il pulsante Rivela se tutti hanno votato
-            const revealBtn = document.getElementById('revealBtn');
-            if (votedUsers.length === users.length && users.length > 0) {
-                revealBtn.disabled = false;
-            } else {
-                revealBtn.disabled = true;
-            }
-            
-            // Mostra i risultati se rivelati
-            if (revealed) {
-                showResults(votesData);
-            }
-        }
-        
+
         // Inizializzazione
         function init() {
             createVoteButtons();
+            loadSessionData();
         }
-        
+
         // Crea i pulsanti di voto
         function createVoteButtons() {
             const standardContainer = document.getElementById('standardVotes');
@@ -370,7 +249,31 @@
                 exceptionalContainer.appendChild(button);
             });
         }
-        
+
+        // Carica i dati della sessione dal Firebase
+        function loadSessionData() {
+            const sessionRef = database.ref('session');
+            sessionRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    serverData.users = data.users || [];
+                    serverData.votes = data.votes || {};
+                    serverData.revealed = data.revealed || false;
+                    updateStatusPanel();
+                }
+            });
+        }
+
+        // Salva i dati della sessione su Firebase
+        function saveSessionData() {
+            const sessionRef = database.ref('session');
+            sessionRef.set({
+                users: serverData.users,
+                votes: serverData.votes,
+                revealed: serverData.revealed
+            });
+        }
+
         // Login
         function login() {
             const username = document.getElementById('usernameInput').value.trim();
@@ -379,38 +282,93 @@
                 return;
             }
             
-            // Controlla se l'utente esiste già
-            sessionRef.child('users').once('value', (snapshot) => {
-                const users = snapshot.val() || {};
-                
-                if (users[username]) {
-                    alert('Questo nome utente è già in uso');
-                    return;
-                }
-                
-                // Registra l'utente
-                currentUser = username;
-                sessionRef.child('users/' + username).set(true);
-                
-                document.getElementById('loginArea').style.display = 'none';
-                document.getElementById('votingArea').style.display = 'block';
-            });
+            if (serverData.users.includes(username)) {
+                alert('Questo nome utente è già in uso');
+                return;
+            }
+            
+            currentUser = username;
+            serverData.users.push(username);
+            saveSessionData();
+            
+            document.getElementById('loginArea').style.display = 'none';
+            document.getElementById('votingArea').style.display = 'block';
+            
+            updateStatusPanel();
         }
-        
+
         // Seleziona un voto
         function selectVote(vote) {
-            if (!currentUser || !sessionRef) return;
+            if (!currentUser) return;
             
-            // Salva il voto nel database
-            sessionRef.child('votes/' + currentUser).set(vote);
-        }
-        
-        // Rivela i risultati
-        function revealResults() {
-            if (!sessionRef) return;
+            serverData.votes[currentUser] = vote;
+            document.getElementById('currentVote').textContent = vote;
             
-            sessionRef.child('revealed').set(true);
+            // Resetta tutti i pulsanti
+            document.querySelectorAll('.vote-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Seleziona il pulsante del voto attuale
+            document.querySelectorAll('.vote-btn').forEach(btn => {
+                if (parseInt(btn.textContent) === vote) {
+                    btn.classList.add('selected');
+                }
+            });
+            
+            saveSessionData();
+            updateStatusPanel();
         }
-        
+
+        // Aggiorna il pannello di stato
+        function updateStatusPanel() {
+            const totalUsers = serverData.users.length;
+            const votedUsers = Object.keys(serverData.votes).length;
+            
+            document.getElementById('totalCount').textContent = totalUsers;
+            document.getElementById('votedCount').textContent = votedUsers;
+            
+            const statusContainer = document.getElementById('userStatus');
+            statusContainer.innerHTML = '';
+            serverData.users.forEach(user => {
+                const statusElement = document.createElement('span');
+                statusElement.textContent = user;
+                if (serverData.votes[user]) {
+                    statusElement.classList.add('voted');
+                }
+                statusContainer.appendChild(statusElement);
+            });
+            
+            document.getElementById('revealBtn').disabled = votedUsers < totalUsers;
+        }
+
         // Mostra i risultati
-        function showResults(votes) {
+        function revealResults() {
+            const resultsBody = document.getElementById('resultsBody');
+            resultsBody.innerHTML = '';
+            
+            serverData.users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${user}</td><td>${serverData.votes[user] || 'Nessun voto'}</td>`;
+                resultsBody.appendChild(row);
+            });
+            
+            document.getElementById('resultsArea').style.display = 'block';
+        }
+
+        // Inizia una nuova sessione
+        function startNewSession() {
+            serverData.users = [];
+            serverData.votes = {};
+            serverData.revealed = false;
+            saveSessionData();
+            
+            document.getElementById('resultsArea').style.display = 'none';
+            document.getElementById('loginArea').style.display = 'block';
+            document.getElementById('votingArea').style.display = 'none';
+        }
+
+        init();
+    </script>
+</body>
+</html>
